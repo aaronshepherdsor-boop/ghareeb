@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jawad's TXT to PDF</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Jawad's TXT to PDF</h1>
+            <div class="theme-toggle">
+                <label class="switch">
+                    <input type="checkbox" id="themeToggle">
+                    <span class="slider round"></span>
+                </label>
+                <span id="themeLabel">Dark Mode</span>
+            </div>
+        </header>
+
+        <main class="editor-container">
+            <div class="workspace">
+                <div class="toolbar">
+                    <div class="formatting-tools">
+                        <button type="button" id="boldBtn" title="Bold">B</button>
+                        <button type="button" id="italicBtn" title="Italic">I</button>
+                        <button type="button" id="underlineBtn" title="Underline">U</button>
+                        <select id="headingSelect" title="Headings">
+                            <option value="p">Paragraph</option>
+                            <option value="h1">Heading 1</option>
+                            <option value="h2">Heading 2</option>
+                            <option value="h3">Heading 3</option>
+                        </select>
+                        <button type="button" id="bulletListBtn" title="Bullet List">•</button>
+                        <button type="button" id="numberedListBtn" title="Numbered List">1.</button>
+                        <button type="button" id="alignLeftBtn" title="Align Left">⫷</button>
+                        <button type="button" id="alignCenterBtn" title="Align Center">⫸</button>
+                        <button type="button" id="alignRightBtn" title="Align Right">⫹</button>
+                        <button type="button" id="linkBtn" title="Insert Link">🔗</button>
+                    </div>
+                </div>
+                
+                <div id="editor" contenteditable="true" class="editor-content"></div>
+                
+                <div class="document-info">
+                    <div class="counters">
+                        <span id="wordCount">Words: 0</span>
+                        <span id="charCount">Characters: 0</span>
+                    </div>
+                    <button type="button" id="clearBtn" class="btn-danger">Clear Document</button>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="controls">
+                    <div class="control-group">
+                        <h3>Import Text File</h3>
+                        <div class="file-import">
+                            <input type="file" id="fileInput" accept=".txt" style="display: none;">
+                            <button type="button" id="fileSelectBtn" class="btn-primary">Select File</button>
+                            <p>or drag and drop .txt file here</p>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Document Title</h3>
+                        <input type="text" id="docTitle" placeholder="Auto-detected title">
+                        <button type="button" id="autoTitleBtn" class="btn-secondary">Auto-Detect Title</button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Export Options</h3>
+                        <button type="button" id="exportPdfBtn" class="btn-primary">Export to PDF</button>
+                        <p class="note">Exports full document content, not just visible area</p>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Page Breaks</h3>
+                        <button type="button" id="pageBreakBtn" class="btn-secondary">Insert Page Break</button>
+                        <p class="note">Add manual page breaks for PDF export</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
