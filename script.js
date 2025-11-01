@@ -10,7 +10,6 @@ const docTitle = document.getElementById('docTitle');
 const autoTitleBtn = document.getElementById('autoTitleBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const clearBtn = document.getElementById('clearBtn');
-const pageBreakBtn = document.getElementById('pageBreakBtn');
 
 // Formatting buttons
 const boldBtn = document.getElementById('boldBtn');
@@ -73,7 +72,6 @@ function setupEventListeners() {
     autoTitleBtn.addEventListener('click', autoDetectTitle);
     exportPdfBtn.addEventListener('click', exportToPdf);
     clearBtn.addEventListener('click', clearDocument);
-    pageBreakBtn.addEventListener('click', insertPageBreak);
     
     // Formatting buttons
     boldBtn.addEventListener('click', () => formatText('bold'));
@@ -128,31 +126,6 @@ function insertLink() {
     if (url) {
         document.execCommand('createLink', false, url);
     }
-    editor.focus();
-}
-
-function insertPageBreak() {
-    const pageBreak = document.createElement('div');
-    pageBreak.className = 'page-break';
-    pageBreak.innerHTML = '--- Page Break ---';
-    pageBreak.setAttribute('data-page-break', 'true');
-    
-    // Insert at cursor position
-    if (window.getSelection) {
-        const sel = window.getSelection();
-        if (sel.rangeCount) {
-            const range = sel.getRangeAt(0);
-            range.insertNode(pageBreak);
-            
-            // Move cursor after the page break
-            const newRange = document.createRange();
-            newRange.setStartAfter(pageBreak);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-        }
-    }
-    
     editor.focus();
 }
 
@@ -249,11 +222,14 @@ function exportToPdf() {
         titleElement.style.textAlign = 'center';
         titleElement.style.marginBottom = '20px';
         titleElement.style.pageBreakAfter = 'avoid';
+        titleElement.style.color = '#2c3e50'; // Dark color for title
+        titleElement.style.fontSize = '24px';
+        titleElement.style.fontWeight = 'bold';
         contentCopy.prepend(titleElement);
     }
     
-    // Apply automatic page breaks for better PDF formatting
-    applyAutomaticPageBreaks(contentCopy);
+    // Apply PDF-specific styling to ensure black text
+    applyPdfStyling(contentCopy);
     
     // Add export info
     const exportInfo = document.createElement('div');
@@ -294,57 +270,44 @@ function exportToPdf() {
     });
 }
 
-// Apply automatic page breaks for better PDF formatting
-function applyAutomaticPageBreaks(contentElement) {
-    // Add CSS for page breaks
-    const style = document.createElement('style');
-    style.textContent = `
-        .auto-page-break {
-            page-break-before: always;
-            break-before: page;
+// Apply PDF-specific styling to ensure black text while preserving links
+function applyPdfStyling(contentElement) {
+    // Create a style element with PDF-specific CSS
+    const pdfStyle = document.createElement('style');
+    pdfStyle.textContent = `
+        /* Reset all text to black except links */
+        body, div, p, span, h1, h2, h3, h4, h5, h6, li, ul, ol, td, th {
+            color: #000000 !important;
+            background-color: transparent !important;
         }
-        h1, h2, h3 {
-            page-break-after: avoid;
-            break-after: avoid;
+        
+        /* Preserve link colors */
+        a, a:link, a:visited {
+            color: #0000EE !important;
+            text-decoration: underline !important;
         }
-        table, img {
-            page-break-inside: avoid;
-            break-inside: avoid;
+        
+        /* Keep title color as specified */
+        h1[style*="color"] {
+            color: #2c3e50 !important;
         }
-        .page-break {
-            page-break-after: always;
-            break-after: page;
+        
+        /* Ensure proper contrast */
+        * {
+            background: transparent !important;
         }
     `;
-    contentElement.prepend(style);
     
-    // Process manual page breaks
-    const manualBreaks = contentElement.querySelectorAll('[data-page-break="true"]');
-    manualBreaks.forEach(breakEl => {
-        breakEl.className = 'page-break';
-    });
+    // Add the style to the content
+    contentElement.prepend(pdfStyle);
     
-    // Auto-detect sections that should start on new pages
-    const headings = contentElement.querySelectorAll('h1, h2');
-    headings.forEach((heading, index) => {
-        if (index > 0) { // Don't add break before first heading
-            // Check if this heading is far enough from previous content
-            const prevElement = heading.previousElementSibling;
-            if (prevElement && !prevElement.classList.contains('auto-page-break')) {
-                // Add automatic page break before major headings
-                const pageBreak = document.createElement('div');
-                pageBreak.className = 'auto-page-break';
-                heading.parentNode.insertBefore(pageBreak, heading);
-            }
-        }
-    });
-    
-    // Ensure large elements don't break across pages awkwardly
-    const largeElements = contentElement.querySelectorAll('p, div, li');
-    largeElements.forEach(el => {
-        const textLength = el.textContent.length;
-        if (textLength > 500) { // Long paragraphs might need breaks
-            el.style.pageBreakInside = 'auto';
+    // Also apply inline styles to all elements except links and title
+    const allElements = contentElement.querySelectorAll('*');
+    allElements.forEach(element => {
+        // Skip links and elements that already have specific color styling
+        if (element.tagName !== 'A' && !element.hasAttribute('style')) {
+            element.style.color = '#000000';
+            element.style.backgroundColor = 'transparent';
         }
     });
 }
