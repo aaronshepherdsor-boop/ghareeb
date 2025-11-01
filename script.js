@@ -135,6 +135,7 @@ function insertPageBreak() {
     const pageBreak = document.createElement('div');
     pageBreak.className = 'page-break';
     pageBreak.innerHTML = '--- Page Break ---';
+    pageBreak.setAttribute('data-page-break', 'true');
     
     // Insert at cursor position
     if (window.getSelection) {
@@ -230,15 +231,29 @@ function exportToPdf() {
     const contentCopy = document.createElement('div');
     contentCopy.innerHTML = editor.innerHTML;
     
-    // Add title if provided
+    // Remove any existing title from content to avoid duplication
+    const existingTitles = contentCopy.querySelectorAll('h1');
+    existingTitles.forEach(title => {
+        // Only remove if it matches our auto-detected title
+        const titleText = title.textContent.trim();
+        if (titleText === docTitle.value.trim()) {
+            title.remove();
+        }
+    });
+    
+    // Add title if provided (only once, at the beginning)
     const title = docTitle.value.trim();
     if (title) {
         const titleElement = document.createElement('h1');
         titleElement.textContent = title;
         titleElement.style.textAlign = 'center';
         titleElement.style.marginBottom = '20px';
+        titleElement.style.pageBreakAfter = 'avoid';
         contentCopy.prepend(titleElement);
     }
+    
+    // Apply automatic page breaks for better PDF formatting
+    applyAutomaticPageBreaks(contentCopy);
     
     // Add export info
     const exportInfo = document.createElement('div');
@@ -251,11 +266,22 @@ function exportToPdf() {
     
     // PDF options
     const options = {
-        margin: 10,
+        margin: 15,
         filename: `${title || 'document'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            logging: false
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait'
+        },
+        pagebreak: { 
+            mode: ['avoid-all', 'css', 'legacy'] 
+        }
     };
     
     // Generate PDF
@@ -265,6 +291,61 @@ function exportToPdf() {
         editor.style.overflow = originalOverflow;
         editor.scrollTop = scrollPosition;
         isExporting = false;
+    });
+}
+
+// Apply automatic page breaks for better PDF formatting
+function applyAutomaticPageBreaks(contentElement) {
+    // Add CSS for page breaks
+    const style = document.createElement('style');
+    style.textContent = `
+        .auto-page-break {
+            page-break-before: always;
+            break-before: page;
+        }
+        h1, h2, h3 {
+            page-break-after: avoid;
+            break-after: avoid;
+        }
+        table, img {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+        .page-break {
+            page-break-after: always;
+            break-after: page;
+        }
+    `;
+    contentElement.prepend(style);
+    
+    // Process manual page breaks
+    const manualBreaks = contentElement.querySelectorAll('[data-page-break="true"]');
+    manualBreaks.forEach(breakEl => {
+        breakEl.className = 'page-break';
+    });
+    
+    // Auto-detect sections that should start on new pages
+    const headings = contentElement.querySelectorAll('h1, h2');
+    headings.forEach((heading, index) => {
+        if (index > 0) { // Don't add break before first heading
+            // Check if this heading is far enough from previous content
+            const prevElement = heading.previousElementSibling;
+            if (prevElement && !prevElement.classList.contains('auto-page-break')) {
+                // Add automatic page break before major headings
+                const pageBreak = document.createElement('div');
+                pageBreak.className = 'auto-page-break';
+                heading.parentNode.insertBefore(pageBreak, heading);
+            }
+        }
+    });
+    
+    // Ensure large elements don't break across pages awkwardly
+    const largeElements = contentElement.querySelectorAll('p, div, li');
+    largeElements.forEach(el => {
+        const textLength = el.textContent.length;
+        if (textLength > 500) { // Long paragraphs might need breaks
+            el.style.pageBreakInside = 'auto';
+        }
     });
 }
 
