@@ -10,6 +10,7 @@ const docTitle = document.getElementById('docTitle');
 const autoTitleBtn = document.getElementById('autoTitleBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const clearBtn = document.getElementById('clearBtn');
+const pageBreakBtn = document.getElementById('pageBreakBtn');
 
 // Formatting buttons
 const boldBtn = document.getElementById('boldBtn');
@@ -72,6 +73,7 @@ function setupEventListeners() {
     autoTitleBtn.addEventListener('click', autoDetectTitle);
     exportPdfBtn.addEventListener('click', exportToPdf);
     clearBtn.addEventListener('click', clearDocument);
+    pageBreakBtn.addEventListener('click', insertPageBreak);
     
     // Formatting buttons
     boldBtn.addEventListener('click', () => formatText('bold'));
@@ -129,6 +131,30 @@ function insertLink() {
     editor.focus();
 }
 
+function insertPageBreak() {
+    const pageBreak = document.createElement('div');
+    pageBreak.className = 'page-break';
+    pageBreak.innerHTML = '--- Page Break ---';
+    
+    // Insert at cursor position
+    if (window.getSelection) {
+        const sel = window.getSelection();
+        if (sel.rangeCount) {
+            const range = sel.getRangeAt(0);
+            range.insertNode(pageBreak);
+            
+            // Move cursor after the page break
+            const newRange = document.createRange();
+            newRange.setStartAfter(pageBreak);
+            newRange.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+        }
+    }
+    
+    editor.focus();
+}
+
 // Document operations
 function autoDetectTitle() {
     const content = editor.innerHTML;
@@ -182,7 +208,7 @@ function importTextFile(file) {
     reader.readAsText(file);
 }
 
-// PDF export functionality
+// PDF export functionality - FIXED VERSION
 function exportToPdf() {
     if (!editor.textContent.trim()) {
         alert('Document is empty. Please add some content before exporting.');
@@ -200,115 +226,87 @@ function exportToPdf() {
     editor.style.height = 'auto';
     editor.style.overflow = 'visible';
     
-    // Create a copy of the editor content for PDF generation
+    // Create a clean copy of the editor content for PDF generation
     const contentCopy = document.createElement('div');
-    contentCopy.innerHTML = editor.innerHTML;
+    contentCopy.style.padding = '20px';
+    contentCopy.style.fontFamily = 'Arial, sans-serif';
+    contentCopy.style.fontSize = '12px';
+    contentCopy.style.lineHeight = '1.4';
     
-    // Remove any existing title from content to avoid duplication
-    const existingTitles = contentCopy.querySelectorAll('h1');
-    existingTitles.forEach(title => {
-        // Only remove if it matches our auto-detected title
-        const titleText = title.textContent.trim();
-        if (titleText === docTitle.value.trim()) {
-            title.remove();
-        }
-    });
-    
-    // Add title if provided (only once, at the beginning)
+    // Add title if provided (only once)
     const title = docTitle.value.trim();
     if (title) {
         const titleElement = document.createElement('h1');
         titleElement.textContent = title;
         titleElement.style.textAlign = 'center';
-        titleElement.style.marginBottom = '20px';
-        titleElement.style.pageBreakAfter = 'avoid';
-        titleElement.style.color = '#2c3e50'; // Dark color for title
-        titleElement.style.fontSize = '24px';
-        titleElement.style.fontWeight = 'bold';
-        contentCopy.prepend(titleElement);
+        titleElement.style.marginBottom = '15px';
+        titleElement.style.fontSize = '18px';
+        titleElement.style.color = '#333';
+        contentCopy.appendChild(titleElement);
     }
     
-    // Apply PDF-specific styling to ensure black text
-    applyPdfStyling(contentCopy);
+    // Add the main content (remove any existing H1 to avoid duplicates)
+    const contentWithoutH1 = editor.innerHTML;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = contentWithoutH1;
     
-    // Add export info
+    // Remove any H1 elements from content to prevent duplicates
+    const h1Elements = tempDiv.querySelectorAll('h1');
+    h1Elements.forEach(h1 => h1.remove());
+    
+    contentCopy.innerHTML += tempDiv.innerHTML;
+    
+    // Add compact export info
     const exportInfo = document.createElement('div');
     exportInfo.style.textAlign = 'center';
-    exportInfo.style.marginTop = '30px';
-    exportInfo.style.fontSize = '12px';
+    exportInfo.style.marginTop = '15px';
+    exportInfo.style.paddingTop = '10px';
+    exportInfo.style.fontSize = '10px';
     exportInfo.style.color = '#666';
-    exportInfo.textContent = `Exported from Jawad's TXT to PDF on ${new Date().toLocaleDateString()}`;
+    exportInfo.style.borderTop = '1px solid #eee';
+    exportInfo.textContent = `Exported from Jawad's TXT to PDF | ${new Date().toLocaleDateString()}`;
     contentCopy.appendChild(exportInfo);
     
-    // PDF options
+    // PDF options - optimized for smaller size
     const options = {
-        margin: 15,
+        margin: 5,
         filename: `${title || 'document'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 0.8 },
         html2canvas: { 
-            scale: 2,
+            scale: 1.5,
             useCORS: true,
             logging: false
         },
         jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
-            orientation: 'portrait'
-        },
-        pagebreak: { 
-            mode: ['avoid-all', 'css', 'legacy'] 
+            orientation: 'portrait',
+            compress: true
         }
     };
     
+    // Show loading state
+    exportPdfBtn.textContent = 'Generating PDF...';
+    exportPdfBtn.disabled = true;
+    
     // Generate PDF
-    html2pdf().from(contentCopy).set(options).save().then(() => {
+    html2pdf().set(options).from(contentCopy).save().then(() => {
         // Restore original editor state
         editor.style.height = originalHeight;
         editor.style.overflow = originalOverflow;
         editor.scrollTop = scrollPosition;
         isExporting = false;
-    });
-}
-
-// Apply PDF-specific styling to ensure black text while preserving links
-function applyPdfStyling(contentElement) {
-    // Create a style element with PDF-specific CSS
-    const pdfStyle = document.createElement('style');
-    pdfStyle.textContent = `
-        /* Reset all text to black except links */
-        body, div, p, span, h1, h2, h3, h4, h5, h6, li, ul, ol, td, th {
-            color: #000000 !important;
-            background-color: transparent !important;
-        }
         
-        /* Preserve link colors */
-        a, a:link, a:visited {
-            color: #0000EE !important;
-            text-decoration: underline !important;
-        }
+        // Restore button state
+        exportPdfBtn.textContent = 'Export to PDF';
+        exportPdfBtn.disabled = false;
+    }).catch(error => {
+        console.error('PDF generation error:', error);
+        alert('Error generating PDF. Please try again.');
         
-        /* Keep title color as specified */
-        h1[style*="color"] {
-            color: #2c3e50 !important;
-        }
-        
-        /* Ensure proper contrast */
-        * {
-            background: transparent !important;
-        }
-    `;
-    
-    // Add the style to the content
-    contentElement.prepend(pdfStyle);
-    
-    // Also apply inline styles to all elements except links and title
-    const allElements = contentElement.querySelectorAll('*');
-    allElements.forEach(element => {
-        // Skip links and elements that already have specific color styling
-        if (element.tagName !== 'A' && !element.hasAttribute('style')) {
-            element.style.color = '#000000';
-            element.style.backgroundColor = 'transparent';
-        }
+        // Restore button state
+        exportPdfBtn.textContent = 'Export to PDF';
+        exportPdfBtn.disabled = false;
     });
 }
 
