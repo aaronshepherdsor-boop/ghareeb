@@ -279,15 +279,6 @@ input[type="text"] {
     margin-top: 5px;
 }
 
-.page-break {
-    page-break-after: always;
-    border-top: 2px dashed #ccc;
-    margin: 20px 0;
-    padding: 10px 0;
-    text-align: center;
-    color: #777;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .editor-container {
