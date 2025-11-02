@@ -127,12 +127,16 @@ input:checked + .slider:before {
     box-shadow: var(--shadow);
     overflow: hidden;
     transition: var(--transition);
+    position: relative;
 }
 
 .toolbar {
     padding: 10px 15px;
     background-color: var(--sidebar-bg);
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .formatting-tools {
@@ -169,10 +173,17 @@ input:checked + .slider:before {
     min-height: 400px;
     outline: none;
     line-height: 1.6;
+    color: var(--text-color);
 }
 
 .editor-content:focus {
     outline: none;
+}
+
+/* Ensure hyperlinks are blue in editor */
+.editor-content a {
+    color: #0066cc !important;
+    text-decoration: underline !important;
 }
 
 .document-info {
@@ -279,15 +290,6 @@ input[type="text"] {
     margin-top: 5px;
 }
 
-.page-break {
-    page-break-after: always;
-    border-top: 2px dashed #ccc;
-    margin: 20px 0;
-    padding: 10px 0;
-    text-align: center;
-    color: #777;
-}
-
 /* Responsive Design */
 @media (max-width: 768px) {
     .editor-container {
@@ -300,5 +302,10 @@ input[type="text"] {
     
     .formatting-tools {
         justify-content: center;
+    }
+    
+    .toolbar {
+        flex-direction: column;
+        gap: 10px;
     }
 }
