@@ -10,7 +10,6 @@ const docTitle = document.getElementById('docTitle');
 const autoTitleBtn = document.getElementById('autoTitleBtn');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const clearBtn = document.getElementById('clearBtn');
-const pageBreakBtn = document.getElementById('pageBreakBtn');
 
 // Formatting buttons
 const boldBtn = document.getElementById('boldBtn');
@@ -24,23 +23,24 @@ const alignCenterBtn = document.getElementById('alignCenterBtn');
 const alignRightBtn = document.getElementById('alignRightBtn');
 const linkBtn = document.getElementById('linkBtn');
 
-// State variables
-let scrollPosition = 0;
-let isExporting = false;
-
 // Initialize the application
 function init() {
     loadFromLocalStorage();
     setupEventListeners();
     updateCounters();
     applyThemeFromStorage();
+    
+    // Ensure editor stays at top
+    editor.scrollTop = 0;
 }
 
 // Set up all event listeners
 function setupEventListeners() {
     // Editor events
-    editor.addEventListener('input', updateCounters);
-    editor.addEventListener('input', autoSave);
+    editor.addEventListener('input', () => {
+        updateCounters();
+        autoSave();
+    });
     
     // Theme toggle
     themeToggle.addEventListener('change', toggleTheme);
@@ -73,7 +73,6 @@ function setupEventListeners() {
     autoTitleBtn.addEventListener('click', autoDetectTitle);
     exportPdfBtn.addEventListener('click', exportToPdf);
     clearBtn.addEventListener('click', clearDocument);
-    pageBreakBtn.addEventListener('click', insertPageBreak);
     
     // Formatting buttons
     boldBtn.addEventListener('click', () => formatText('bold'));
@@ -127,31 +126,16 @@ function insertLink() {
     const url = prompt('Enter the URL:');
     if (url) {
         document.execCommand('createLink', false, url);
+        
+        // Ensure links are blue in the editor immediately
+        setTimeout(() => {
+            const links = editor.querySelectorAll('a');
+            links.forEach(link => {
+                link.style.color = '#0066cc';
+                link.style.textDecoration = 'underline';
+            });
+        }, 10);
     }
-    editor.focus();
-}
-
-function insertPageBreak() {
-    const pageBreak = document.createElement('div');
-    pageBreak.className = 'page-break';
-    pageBreak.innerHTML = '--- Page Break ---';
-    
-    // Insert at cursor position
-    if (window.getSelection) {
-        const sel = window.getSelection();
-        if (sel.rangeCount) {
-            const range = sel.getRangeAt(0);
-            range.insertNode(pageBreak);
-            
-            // Move cursor after the page break
-            const newRange = document.createRange();
-            newRange.setStartAfter(pageBreak);
-            newRange.collapse(true);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-        }
-    }
-    
     editor.focus();
 }
 
@@ -179,11 +163,20 @@ function autoDetectTitle() {
 }
 
 function clearDocument() {
-    if (confirm('Are you sure you want to clear the entire document?')) {
-        editor.innerHTML = '';
-        updateCounters();
-        autoSave();
-    }
+    // No confirmation, just clear immediately
+    editor.innerHTML = '<p></p>';
+    updateCounters();
+    autoSave();
+    
+    // Set cursor to beginning
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(editor);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    
+    editor.focus();
 }
 
 // File import functionality
@@ -203,22 +196,30 @@ function importTextFile(file) {
         updateCounters();
         autoSave();
         autoDetectTitle();
+        
+        // Ensure links are blue after import
+        const links = editor.querySelectorAll('a');
+        links.forEach(link => {
+            link.style.color = '#0066cc';
+            link.style.textDecoration = 'underline';
+        });
+        
+        // Scroll to top after import
+        editor.scrollTop = 0;
     };
     
     reader.readAsText(file);
 }
 
-// PDF export functionality - FIXED VERSION
+// PDF export functionality
 function exportToPdf() {
     if (!editor.textContent.trim()) {
         alert('Document is empty. Please add some content before exporting.');
         return;
     }
     
-    isExporting = true;
-    
     // Store current scroll position and styling
-    scrollPosition = editor.scrollTop;
+    const scrollPosition = editor.scrollTop;
     const originalHeight = editor.style.height;
     const originalOverflow = editor.style.overflow;
     
@@ -228,10 +229,11 @@ function exportToPdf() {
     
     // Create a clean copy of the editor content for PDF generation
     const contentCopy = document.createElement('div');
-    contentCopy.style.padding = '20px';
+    contentCopy.style.padding = '15mm 20mm';
     contentCopy.style.fontFamily = 'Arial, sans-serif';
-    contentCopy.style.fontSize = '12px';
-    contentCopy.style.lineHeight = '1.4';
+    contentCopy.style.fontSize = '12pt';
+    contentCopy.style.lineHeight = '1.5';
+    contentCopy.style.color = '#000000';
     
     // Add title if provided (only once)
     const title = docTitle.value.trim();
@@ -240,8 +242,9 @@ function exportToPdf() {
         titleElement.textContent = title;
         titleElement.style.textAlign = 'center';
         titleElement.style.marginBottom = '15px';
-        titleElement.style.fontSize = '18px';
-        titleElement.style.color = '#333';
+        titleElement.style.fontSize = '16pt';
+        titleElement.style.color = '#000000';
+        titleElement.style.fontWeight = 'bold';
         contentCopy.appendChild(titleElement);
     }
     
@@ -254,34 +257,44 @@ function exportToPdf() {
     const h1Elements = tempDiv.querySelectorAll('h1');
     h1Elements.forEach(h1 => h1.remove());
     
-    contentCopy.innerHTML += tempDiv.innerHTML;
+    // Create a style element for blue links in PDF
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        a {
+            color: #0066cc !important;
+            text-decoration: underline !important;
+        }
+        * {
+            color: #000000;
+        }
+    `;
+    contentCopy.appendChild(styleElement);
     
-    // Add compact export info
-    const exportInfo = document.createElement('div');
-    exportInfo.style.textAlign = 'center';
-    exportInfo.style.marginTop = '15px';
-    exportInfo.style.paddingTop = '10px';
-    exportInfo.style.fontSize = '10px';
-    exportInfo.style.color = '#666';
-    exportInfo.style.borderTop = '1px solid #eee';
-    exportInfo.textContent = `Exported from Jawad's TXT to PDF | ${new Date().toLocaleDateString()}`;
-    contentCopy.appendChild(exportInfo);
+    // Create content div for the main text
+    const contentDiv = document.createElement('div');
+    contentDiv.innerHTML = tempDiv.innerHTML;
+    contentCopy.appendChild(contentDiv);
     
-    // PDF options - optimized for smaller size
+    // PDF options - Optimized for smaller file size
     const options = {
-        margin: 5,
+        margin: 10,
         filename: `${title || 'document'}.pdf`,
-        image: { type: 'jpeg', quality: 0.8 },
+        image: { 
+            type: 'jpeg', 
+            quality: 0.7
+        },
         html2canvas: { 
-            scale: 1.5,
+            scale: 1.2,
             useCORS: true,
-            logging: false
+            logging: false,
+            letterRendering: true
         },
         jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
             orientation: 'portrait',
-            compress: true
+            compress: true,
+            hotfixes: ["px_scaling"]
         }
     };
     
@@ -295,7 +308,6 @@ function exportToPdf() {
         editor.style.height = originalHeight;
         editor.style.overflow = originalOverflow;
         editor.scrollTop = scrollPosition;
-        isExporting = false;
         
         // Restore button state
         exportPdfBtn.textContent = 'Export to PDF';
@@ -330,9 +342,18 @@ function loadFromLocalStorage() {
     const savedContent = localStorage.getItem('jawad-txt-pdf-content');
     if (savedContent) {
         editor.innerHTML = savedContent;
+        
+        // Ensure links are blue when loading from storage
+        setTimeout(() => {
+            const links = editor.querySelectorAll('a');
+            links.forEach(link => {
+                link.style.color = '#0066cc';
+                link.style.textDecoration = 'underline';
+            });
+        }, 100);
     } else {
-        // Initialize with a placeholder
-        editor.innerHTML = '<p>Start typing your document here...</p>';
+        // Initialize with empty paragraph
+        editor.innerHTML = '<p></p>';
     }
 }
 
